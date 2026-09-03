@@ -1,0 +1,8 @@
+# Caché de Python
+__pycache__/
+*.pyc
+
+# Respaldos y archivos de trabajo
+pagerank_RESPALDO/
+pagerank_referencia.py
+*.zip

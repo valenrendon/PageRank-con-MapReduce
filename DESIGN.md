@@ -1,6 +1,6 @@
 # DESIGN.md — PageRank con MapReduce
 
-**Autor:** Valentina Rendón Claro  **Fecha:** 27 de agosto de 2026
+**Autor(es):** Valentina Rendón Claro  **Fecha:** 27 de agosto de 2026
 
 **Módulo:** 01-mapreduce / 01-pure-python · **Framework:** `mapreduce_framework.py` (sin modificar) · **Damping:** d = 0.85
 
@@ -110,10 +110,10 @@ La adyacencia viaja por el mismo canal que los datos —clave, shuffle, reducer�
 
 1. El reducer de `P` recibe solo números y no tiene forma de devolver una adyacencia — solo podría retornar el rank.
 2. La salida de la iteración 1 sería `{"A": 0.324, "B": 0.111, ...}`: ranks sin estructura.
-3. En la iteración 2 el mapper recibiría ítems sin lista de vecinos ⇒ **todos los nodos se comportarían como dangling**, nadie repartiría nada, y todos los ranks colapsarían al mismo valor `(1-d)/N + d/N = 1/N`. El algoritmo devolvería una distribución uniforme: numéricamente "converge", pero a la respuesta equivocada, y de forma silenciosa.
-4. Los nodos sin inlinks (`E`, `G`, `H` en el grafo de 8) ni siquiera aparecerían como clave y desaparecerían del estado, haciendo que `N` se encogiera iteración tras iteración.
+3. Además, los nodos sin inlinks (`E`, `G`, `H` en el grafo de 8) nunca aparecerían como clave del shuffle, así que **desaparecerían del estado ya en la primera iteración** y `N` se encogería.
+4. En la iteración 2 el mapper recibiría ítems sin lista de vecinos ⇒ todos se comportarían como dangling y **ninguno emitiría un solo par**. `mapreduce()` devolvería un diccionario vacío: el grafo deja de existir.
 
-Es exactamente el error que una implementación ingenua produce y que no se detecta con un test de "corre sin excepciones" — solo lo delata la **invariante de suma** y el test del grafo trivial.
+El punto importante es que en ningún momento se lanza una excepción — el bucle simplemente se queda sin datos. Es un error que no detecta un test de "corre sin fallar"; solo lo delatan la **invariante de suma** y un test que verifique explícitamente que la adyacencia sale intacta del reducer.
 
 **Alternativa que descarté:** guardar la adyacencia en una variable del driver y volver a unirla al `dict` de ranks después de cada `mapreduce()` (un *join* fuera del framework). Funciona y es más barato en shuffle (ahorra los N mensajes `STRUCT`), pero **rompe el espíritu del ejercicio**: en un MapReduce real y distribuido no existe un "driver" que pueda tener el grafo entero en memoria — es precisamente lo que no cabe. El mensaje `STRUCT` es la solución que escala, y su costo (N de N+E, o sea ~14% del shuffle en el grafo grande) es el precio explícito de no tener estado compartido.
 
@@ -268,7 +268,7 @@ def run_pagerank(graph, d=0.85, max_iter=50, epsilon=1e-6):
 ## 7. Anexo — Verificación aritmética a mano (`web_graph_sample.txt`)
 
 Grafo: `A→B,C` · `B→C` · `C→A` · `D→A,C` · `E→` (dangling) · `F→A,B,C,D` · `G→F` · `H→A`.
-`N = 8`, `E = 11`, rank inicial `1/8 = 0.125`, `d = 0.85`, `(1−d)/N = 0.01875`, `D = rank(E) = 0.125`, `D/N = 0.015625`.
+`N = 8`, `E = 12`, rank inicial `1/8 = 0.125`, `d = 0.85`, `(1−d)/N = 0.01875`, `D = rank(E) = 0.125`, `D/N = 0.015625`.
 
 | Nodo | Contribuciones entrantes | Σ contrib | rank tras iteración 1 |
 | --- | --- | --- | --- |
