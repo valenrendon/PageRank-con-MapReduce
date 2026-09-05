@@ -5,10 +5,10 @@
 **Asistente usado:** Claude (Anthropic), en sesiones de trabajo sobre los archivos
 del proyecto.
 
-Esta bitácora registra lo que pedí, lo que la IA produjo mal o incompleto y qué
+Esta bitácora registra lo que pedí, lo que la IA produjo mal o incompleto, y qué
 tuve que corregir. Está ordenada cronológicamente. Los errores están descritos
 con el detalle suficiente para reproducirlos, porque varios de ellos son el tipo
-de error que no rompe el programa y ese es justamente el punto.
+de error que **no rompe el programa** — y ese es justamente el punto.
 
 ---
 
@@ -229,6 +229,96 @@ Aquí la IA fue útil porque le pedí **números**, no opinión.
 **Limpieza del documento.** El borrador del `DESIGN.md` mezclaba diseño con
 comentarios de proceso ("verifiqué que...", "estado de esta entrega...") que iban
 dirigidos a mí, no al lector del documento. Los saqué todos antes de entregar.
+
+---
+
+## Fase 4 — Spec-driven development en Kiro
+
+**Por qué.** El curso pide trabajar con spec-driven development. Convertí el
+diseño ya aprobado en un spec formal: `requirements.md` con 9 requerimientos y 40
+criterios de aceptación en notación EARS, un `design.md` técnico, y `tasks.md`
+con 13 tareas que referencian cada criterio. Más tres *steering files*
+(`product.md`, `tech.md`, `structure.md`) que codifican las restricciones del
+enunciado y que Kiro lee en cada interacción. Todo versionado en `.kiro/`.
+
+### 4.1 Verificación de que el steering se aplica
+
+Antes de ejecutar nada le pregunté a Kiro qué restricciones tenía el proyecto.
+Respondió correctamente: solo biblioteca estándar, `matplotlib` confinado a
+`grafica_analisis.py`, imports permitidos en `pagerank.py` limitados a `sys`,
+`time` y el framework, y `mapreduce_framework.py` intocable.
+
+Eso confirma la utilidad real del formato: las restricciones del enunciado dejan
+de depender de que yo las repita en cada prompt.
+
+### 4.2 Ejecución de tareas — Kiro verificó en vez de generar
+
+Al ejecutar la tarea 1 (esqueleto y constantes), Kiro detectó que `pagerank.py`
+ya existía y cumplía: docstring con las tres decisiones de diseño, solo los
+imports permitidos, las cinco constantes definidas. Lo compiló con `py_compile`
+para confirmarlo y marcó la tarea como completa.
+
+No es el resultado que esperaba —esperaba que generara código— pero es honesto y
+tiene valor: el spec sirvió como **checklist de conformidad** sobre una
+implementación existente.
+
+### 4.3 El hallazgo: un requisito ambiguo, no un error de código
+
+Le pedí que auditara la implementación contra los tres criterios que sostienen
+el diseño, citando líneas:
+
+> Verifica que `pagerank.py` cumpla los criterios de aceptación 2.2, 4.2 y 4.4 de
+> `requirements.md`. Para cada uno, cita la línea exacta del código que lo
+> satisface o señala si no se cumple.
+
+Resultado:
+
+| Criterio | Veredicto |
+| --- | --- |
+| **2.2** — el `STRUCT` se emite incondicionalmente | ✅ el `yield` está antes del `if adjacency:` |
+| **4.2** — la masa colgante se calcula en el driver | ✅ barrido `O(N)` antes de `mapreduce()`; el mapper no emite nada relacionado |
+| **4.4** — `Σ ranks = 1,0` en cada iteración | ⚠️ **se cumple matemáticamente, pero no se verifica en el código** |
+
+El tercero es el hallazgo. Kiro señaló que mi criterio decía *"el sistema deberá
+mantener Σ ranks = 1,0"*, y que eso admite dos lecturas: garantía matemática
+—que la fórmula del reducer sí da— o verificación activa en tiempo de ejecución,
+que no existía. La suma se registraba en `stats["sum_history"]` y los tests la
+comprobaban (criterio 9.4), pero nada detenía una corrida si se rompía.
+
+**El problema no estaba en el código: estaba en cómo escribí el requisito.**
+
+**Qué corregí.** Agregué una guardia explícita en `run_pagerank()`, después de
+calcular los ranks de cada iteración:
+
+```python
+total = sum(current.values())
+if abs(total - 1.0) > 1e-10:
+    raise AssertionError(
+        f"Invariante de suma rota en la iteración {iteration}: "
+        f"Σ ranks = {total!r} (se esperaba 1.0 ± 1e-10)")
+```
+
+Verifiqué que la guardia realmente dispara: introduje una fuga deliberada en el
+reducer (multiplicar el rank por 0,9) y la corrida se detuvo en la iteración 1
+con `Σ ranks = 0.8999999999999999`. Con el código correcto, los 29 tests siguen
+pasando y el grafo grande converge igual en 16 iteraciones.
+
+Con eso el criterio 4.4 deja de ser interpretable: la invariante ya no es solo
+una propiedad teórica del papel, es una condición que el programa hace cumplir.
+
+### 4.4 Lo que me llevo del formato
+
+El arco completo fue: **escribí el spec → lo usé para auditar mi propio código →
+la auditoría encontró que un requisito era ambiguo → precisé el requisito y
+endurecí el código.** Ninguna de esas cuatro etapas habría ocurrido pidiéndole
+código a una IA y revisándolo después.
+
+Escribir en EARS obliga a una precisión incómoda pero productiva. Dos criterios
+tuvieron que quedar mucho más explícitos que en el `DESIGN.md`: el 2.2 (el
+`STRUCT` se emite *incondicionalmente* — la implementación intuitiva es ponerlo
+dentro del `if adjacency:`, que es justo el error que destruye el grafo) y el 4.2
+(la masa colgante **no** se emite desde el mapper — sin esa negación explícita, la
+lectura natural lleva a la implementación de 3 millones de pares por iteración).
 
 ---
 
