@@ -7,7 +7,7 @@ Todas las cifras de este documento provienen de corridas reales sobre
 oficial de la entrega. Los conteos de pares no están estimados: `pagerank.py`
 instrumenta el mapper y reporta el volumen medido en cada iteración.
 
-
+---
 
 ## 1. Volumen de shuffle por iteración
 
@@ -81,6 +81,7 @@ agrupar. Medido con `tracemalloc` sobre el grafo grande: **9,0 MB** para los
 entero en cada iteración, y es la razón por la que este framework single-node no
 llegaría muy lejos del millón de nodos sin partir el trabajo.
 
+---
 
 ## 2. Dónde pondría un combiner y qué pre-agregaría
 
@@ -146,6 +147,7 @@ El framework de los labs **no tiene combiners**: `mapreduce()` hace
 `mapped.extend(mapper(item))` y pasa directo al `defaultdict`. Por eso los
 73.195 pares se mueven completos en cada iteración.
 
+---
 
 ## 3. Data skew: qué pasa con un in-degree gigantesco
 
@@ -204,6 +206,7 @@ convertirse en el problema. Las tres defensas habituales:
    …) para dividirla entre varios reducers y hacer una segunda pasada que sume
    los parciales. Cuesta un job extra.
 
+---
 
 ## 4. Conexión con Clase 5: por qué Spark sería más rápido
 
@@ -273,12 +276,13 @@ exactamente la limitación que esta tarea nos hizo sentir en carne propia**: no
 es que MapReduce esté mal diseñado, es que fue diseñado para una pasada, y
 PageRank necesita muchas.
 
+---
 
 ## 5. Resultados sobre `web_graph_large.txt`
 
 ### 5.1 Top-15 por PageRank contrastado con in-degree
 
-Convergencia en **16 iteraciones** (L1 final 9,75 × 10⁻⁷), Σ ranks = 1,000000000000, en 2,4 segundos.
+Convergencia en **16 iteraciones** (L1 final 9,75 × 10⁻⁷), Σ ranks = 1,000000000000, en ~2 segundos.
 
 | # | Nodo | PageRank | In-degree | Puesto por in-degree | Δ puesto |
 | ---: | --- | ---: | ---: | ---: | ---: |
@@ -339,7 +343,7 @@ contribución recibida**.
 Esa es, en una línea, la razón de ser de PageRank: *quién* te enlaza importa
 más que *cuántos* te enlazan.
 
-
+---
 
 ## 6. Stretch: tiempo por iteración y proyección a mayor escala
 
@@ -426,6 +430,7 @@ del enunciado, lo que confirma que la cifra de referencia se calculó con un
 umbral más estricto que el que el propio enunciado especifica. Nuestra
 implementación respeta lo que pide §4 (`epsilon = 1e-6`) y por eso reporta 16.
 
+---
 
 ## 7. Resumen de las cifras clave
 
