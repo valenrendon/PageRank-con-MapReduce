@@ -268,6 +268,17 @@ def run_pagerank(graph, d=DAMPING, max_iter=MAX_ITER, epsilon=EPSILON,
 
         # --- criterio de convergencia, FUERA de mapreduce() ----------------
         current = {node_id: rank for node_id, (rank, _) in state}
+
+        # Verificación de la invariante: Σ ranks debe ser 1.0 en cada iteración.
+        # Si el manejo de dangling nodes está mal, esta suma se aleja de 1.0
+        # y el error es silencioso sin esta guardia.
+        rank_sum = sum(current.values())
+        if abs(rank_sum - 1.0) > 1e-10:
+            raise AssertionError(
+                f"Invariante rota en iteración {iteration}: "
+                f"Σ ranks = {rank_sum:.15f} (esperado 1.0)"
+            )
+
         l1 = sum(abs(current[node_id] - previous[node_id])
                  for node_id in current)
 
