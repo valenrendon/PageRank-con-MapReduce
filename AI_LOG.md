@@ -5,10 +5,10 @@
 **Asistente usado:** Claude (Anthropic), en sesiones de trabajo sobre los archivos
 del proyecto.
 
-Esta bitácora registra lo que pedí, lo que la IA produjo mal o incompleto, y qué
+Esta bitácora registra lo que pedí, lo que la IA produjo mal o incompleto y qué
 tuve que corregir. Está ordenada cronológicamente. Los errores están descritos
 con el detalle suficiente para reproducirlos, porque varios de ellos son el tipo
-de error que **no rompe el programa** — y ese es justamente el punto.
+de error que no rompe el programa y ese es justamente el punto.
 
 ---
 
@@ -249,3 +249,4 @@ demostrar afirmaciones concretas y cuando comparé números contra el enunciado.
 test que reveló el error 4 fue precisamente el que yo había escrito para
 *confirmar* lo que el diseño decía. Terminó refutándolo, y esa es la parte del
 trabajo que la IA no podía hacer por mí: decidir qué había que verificar.
+
